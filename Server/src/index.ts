@@ -41,6 +41,7 @@ import {
   UnknownStationFilter,
   WebsocketNetworkConnection,
 } from '@citrineos/util';
+import { registerMcsRoutes } from './mcs';
 import { type JsonSchemaToTsProvider } from '@fastify/type-provider-json-schema-to-ts';
 import addFormats from 'ajv-formats';
 import fastify, { type FastifyInstance, RouteOptions } from 'fastify';
@@ -197,6 +198,9 @@ export class CitrineOSServer {
     this.initCertificateAuthorityService();
     this.initSmartChargingService();
     this.initRealTimeAuthorizer();
+
+    // Register lightweight MCS routes (simulate/apply) with the simple planner
+    registerMcsRoutes(this._server);
   }
 
   async initialize(): Promise<void> {
