@@ -42,6 +42,8 @@ import {
   WebsocketNetworkConnection,
 } from '@citrineos/util';
 import { registerMcsRoutes } from './mcs';
+import { registerOcpi3Routes } from './ocpi3';
+import { registerEpicRoutes } from './epic';
 import { type JsonSchemaToTsProvider } from '@fastify/type-provider-json-schema-to-ts';
 import addFormats from 'ajv-formats';
 import fastify, { type FastifyInstance, RouteOptions } from 'fastify';
@@ -201,6 +203,10 @@ export class CitrineOSServer {
 
     // Register lightweight MCS routes (simulate/apply) with the simple planner
     registerMcsRoutes(this._server);
+    // Register OCPI 3.0 (PnC/V2G) scaffolding routes
+    registerOcpi3Routes(this._server);
+    // Register Epic API toolbox routes (load mgmt / V2X)
+    registerEpicRoutes(this._server);
   }
 
   async initialize(): Promise<void> {
