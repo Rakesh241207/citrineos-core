@@ -1,4 +1,5 @@
 import { FastifyInstance } from 'fastify';
+import { Sequelize } from 'sequelize-typescript';
 
 type AllowedMode = 'energy' | 'soc' | 'time';
 
@@ -16,8 +17,10 @@ type ConstraintSpec = {
 
 type Profile = {
   id?: string;
+  owner_id?: string;
   target: TargetSpec;
   constraints?: ConstraintSpec;
+  name?: string;
 };
 
 type CurrentState = {
@@ -100,7 +103,7 @@ export function simplePlan(profile: Profile, currentState: CurrentState, now = n
   };
 }
 
-export function registerMcsRoutes(server: FastifyInstance) {
+export function registerMcsRoutes(server: FastifyInstance, sequelizeInstance?: Sequelize) {
   server.post<{ Body: { profile: Profile; currentState?: CurrentState } }>(
     '/api/mcs/profiles/simulate',
     {
@@ -140,7 +143,46 @@ export function registerMcsRoutes(server: FastifyInstance) {
       const { profile, currentState = {} } = request.body;
       const plan = simplePlan(profile, currentState);
       // TODO: integrate with CommandDispatcher to send SetChargingProfile
-      return reply.send({ status: 'accepted', plan });
+
+      if (!sequelizeInstance) {
+        return reply.send({ status: 'accepted', persisted: false, plan });
+      }
+
+      const ownerId = profile.owner_id || '00000000-0000-0000-0000-000000000001';
+      const name = profile.name || 'mcs-profile';
+
+      const [profileRows] = await sequelizeInstance.query(
+        `INSERT INTO mcs_profiles (owner_id, name, profile, status)
+         VALUES (:owner_id, :name, cast(:profile as jsonb), 'applied')
+         RETURNING id;`,
+        {
+          replacements: {
+            owner_id: ownerId,
+            name,
+            profile: JSON.stringify(profile),
+          },
+        },
+      );
+
+      // @ts-expect-error raw result typing
+      const profileId = profileRows?.[0]?.id as string | undefined;
+
+      const [planRows] = await sequelizeInstance.query(
+        `INSERT INTO mcs_plans (profile_id, plan, status)
+         VALUES (:profile_id, cast(:plan as jsonb), 'active')
+         RETURNING id;`,
+        {
+          replacements: {
+            profile_id: profileId,
+            plan: JSON.stringify(plan),
+          },
+        },
+      );
+
+      // @ts-expect-error raw result typing
+      const planId = planRows?.[0]?.id as string | undefined;
+
+      return reply.send({ status: 'accepted', persisted: true, profileId, planId, plan });
     },
   );
 }

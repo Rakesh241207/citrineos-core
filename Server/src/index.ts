@@ -202,7 +202,7 @@ export class CitrineOSServer {
     this.initRealTimeAuthorizer();
 
     // Register lightweight MCS routes (simulate/apply) with the simple planner
-    registerMcsRoutes(this._server);
+    registerMcsRoutes(this._server, this._sequelizeInstance);
     // Register OCPI 3.0 (PnC/V2G) scaffolding routes
     registerOcpi3Routes(this._server);
     // Register Epic API toolbox routes (load mgmt / V2X)
